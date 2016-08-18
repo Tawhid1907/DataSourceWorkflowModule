@@ -1,11 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Web;
+using Sitecore;
 using Sitecore.Data;
 using Sitecore.Data.Fields;
 using Sitecore.Data.Items;
+using Sitecore.Globalization;
 using Sitecore.Layouts;
 using Sitecore.Rules.ConditionalRenderings;
 using Sitecore.SecurityModel;
@@ -26,11 +28,11 @@ namespace HI.Shared.DataSourceWorkflowModule.Extensions
             var list = new List<Item>();
             foreach (RenderingReference reference in i.GetRenderingReferences())
             {
-                list.AddUnqiueDataSourceItem(reference.GetDataSourceItem());
+                list.AddUnqiueDataSourceItem(reference.GetDataSourceItem(i.Language));
 
                 if (includePersonalizationDataSourceItems)
                 {
-                    foreach (var dataSourceItem in reference.GetPersonalizationDataSourceItem())
+                    foreach (var dataSourceItem in reference.GetPersonalizationDataSourceItem(i.Language))
                     {
                         list.AddUnqiueDataSourceItem(dataSourceItem);
                     }
@@ -52,7 +54,7 @@ namespace HI.Shared.DataSourceWorkflowModule.Extensions
             List<Item> list = new List<Item>();
             foreach (RenderingReference reference in i.GetRenderingReferences())
             {
-                Item dataSourceItem = reference.GetDataSourceItem();
+                Item dataSourceItem = reference.GetDataSourceItem(i.Language);
                 if (dataSourceItem != null)
                 {
                     list.Add(dataSourceItem);
@@ -61,11 +63,11 @@ namespace HI.Shared.DataSourceWorkflowModule.Extensions
             return list;
         }
 
-        public static Item GetDataSourceItem(this RenderingReference reference)
+        public static Item GetDataSourceItem(this RenderingReference reference,Language currentLanguage)
         {
             if (reference != null)
             {
-                return GetDataSourceItem(reference.Settings.DataSource, reference.Database);
+                return GetDataSourceItem(reference.Settings.DataSource, reference.Database,currentLanguage);
             }
             return null;
         }
@@ -75,17 +77,17 @@ namespace HI.Shared.DataSourceWorkflowModule.Extensions
             var list = new List<Item>();
             foreach (var reference in i.GetRenderingReferences())
             {
-                list.AddRange(reference.GetPersonalizationDataSourceItem());
+                list.AddRange(reference.GetPersonalizationDataSourceItem(i.Language));
             }
             return list;
         }
 
-        private static IEnumerable<Item> GetPersonalizationDataSourceItem(this RenderingReference reference)
+        private static IEnumerable<Item> GetPersonalizationDataSourceItem(this RenderingReference reference,Language currentLanguage)
         {
             var list = new List<Item>();
             if (reference != null && reference.Settings.Rules != null && reference.Settings.Rules.Count > 0)
             {
-                list.AddRange(reference.Settings.Rules.Rules.SelectMany(r => r.Actions).OfType<SetDataSourceAction<ConditionalRenderingsRuleContext>>().Select(setDataSourceAction => GetDataSourceItem(setDataSourceAction.DataSource, reference.Database)).Where(dataSourceItem => dataSourceItem != null));
+                list.AddRange(reference.Settings.Rules.Rules.SelectMany(r => r.Actions).OfType<SetDataSourceAction<ConditionalRenderingsRuleContext>>().Select(setDataSourceAction => GetDataSourceItem(setDataSourceAction.DataSource, reference.Database,currentLanguage)).Where(dataSourceItem => dataSourceItem != null));
             }
             return list;
         }
@@ -143,12 +145,12 @@ namespace HI.Shared.DataSourceWorkflowModule.Extensions
             }
         }
 
-        private static Item GetDataSourceItem(string id, Database db)
+        private static Item GetDataSourceItem(string id, Database db,Language currentLanguage)
         {
             Guid itemId;
             return Guid.TryParse(id, out itemId)
-                                    ? db.GetItem(new ID(itemId))
-                                    : db.GetItem(id);
+                                    ? db.GetItem(new ID(itemId), currentLanguage)
+                                    : db.GetItem(id,currentLanguage);
         }
 
         public static string GetContentEditorUrl(this Item i)
